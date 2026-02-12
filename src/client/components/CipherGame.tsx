@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { generatePuzzle, Puzzle } from '../utils/cipherUtils';
+import { generatePuzzle, getDailySeed, getTodayString, Puzzle } from '../utils/cipherUtils';
 
 export const CipherGame = () => {
     const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
@@ -10,43 +10,83 @@ export const CipherGame = () => {
     const [success, setSuccess] = useState(false);
     const [showExplanation, setShowExplanation] = useState(false);
 
+    // New State for Modes
+    const [gameMode, setGameMode] = useState<'daily' | 'practice'>('daily');
+    const [dailyCompleted, setDailyCompleted] = useState(false);
+
     useEffect(() => {
-        startNewLevel();
+        checkDailyStatus();
     }, []);
 
-    const startNewLevel = () => {
-        setPuzzle(generatePuzzle());
+    const checkDailyStatus = () => {
+        const today = getTodayString();
+        const lastSolved = localStorage.getItem('daily_solved_date');
+
+        if (lastSolved === today) {
+            setDailyCompleted(true);
+            setGameMode('practice'); // Auto-switch to practice if daily is done
+            startPracticeLevel();
+        } else {
+            setDailyCompleted(false);
+            setGameMode('daily');
+            startDailyLevel();
+        }
+    };
+
+    const startDailyLevel = () => {
+        const seed = getDailySeed();
+        setPuzzle(generatePuzzle(seed));
+        setUserAnswer('');
+        setSuccess(false);
+        setShowExplanation(false);
+        setLevel(1); // Daily is just 1 level for now
+    };
+
+    const startPracticeLevel = () => {
+        setPuzzle(generatePuzzle()); // No seed = random
         setUserAnswer('');
         setSuccess(false);
         setShowExplanation(false);
     };
 
+    const handleDailyComplete = () => {
+        const today = getTodayString();
+        localStorage.setItem('daily_solved_date', today);
+        setDailyCompleted(true);
+        // Maybe show a "Daily Complete!" modal here?
+        // For now, let's switch to practice after a delay
+        setTimeout(() => {
+            setGameMode('practice');
+            startPracticeLevel();
+        }, 3000);
+    };
+
     const checkAnswer = () => {
         if (!puzzle) return;
-
-        // Clean user input: remove spaces if not number type, remove dashes if user added them manually but answer format expects them?
-        // Actually for number puzzle answer is "1-2-3", so user should type that or spaces?
-        // Let's normalize: logic depends on type.
 
         let normalizedUser = userAnswer.toUpperCase().trim();
         let normalizedAnswer = puzzle.answer;
 
         if (puzzle.type === 'number') {
-            // Allow user to use spaces or dashes
             normalizedUser = normalizedUser.replace(/,/g, '-').replace(/\s+/g, '-');
         }
 
         if (normalizedUser === normalizedAnswer) {
             setSuccess(true);
             setScore(prev => prev + 100);
-            setTimeout(() => {
-                setLevel(prev => prev + 1);
-                startNewLevel();
-            }, 2000);
+
+            if (gameMode === 'daily') {
+                handleDailyComplete();
+            } else {
+                setTimeout(() => {
+                    setLevel(prev => prev + 1);
+                    startPracticeLevel();
+                }, 2000);
+            }
+
         } else {
             setShake(true);
             setTimeout(() => setShake(false), 500);
-            // Optionally show explanation on multiple fails?
         }
     };
 
@@ -57,13 +97,19 @@ export const CipherGame = () => {
 
             {/* HUD */}
             <div className="w-full flex justify-between items-center mb-8 glass-panel p-4 rounded-xl">
-                <div className="flex flex-col">
-                    <span className="text-xs text-blue-200 uppercase tracking-wider">Level</span>
-                    <span className="text-2xl font-bold text-white">{level}</span>
+                <div className="flex flex-col items-start">
+                    <span className="text-xs text-blue-200 uppercase tracking-wider">Mode</span>
+                    {gameMode === 'daily' ? (
+                        <span className="text-xl font-bold text-yellow-400 drop-shadow-md">DAILY CHALLENGE</span>
+                    ) : (
+                        <span className="text-xl font-bold text-blue-400">PRACTICE RUN</span>
+                    )}
                 </div>
-                <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 tracking-tighter shadow-glow">
+
+                <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 tracking-tighter shadow-glow hidden md:block">
                     I-Q LAND
                 </h1>
+
                 <div className="flex flex-col items-end">
                     <span className="text-xs text-blue-200 uppercase tracking-wider">Score</span>
                     <span className="text-2xl font-bold text-white">{score}</span>
@@ -72,6 +118,15 @@ export const CipherGame = () => {
 
             {/* Puzzle Area */}
             <div className={`glass-panel p-8 rounded-2xl w-full max-w-2xl mb-8 transition-transform duration-300 ${shake ? 'animate-shake border-red-500/50' : success ? 'border-green-500/50 bg-green-500/10' : ''}`}>
+
+                {/* Daily Success Message Overlay */}
+                {success && gameMode === 'daily' && (
+                    <div className="absolute inset-0 bg-black/80 z-10 flex flex-col items-center justify-center rounded-2xl animate-fade-in backdrop-blur-sm">
+                        <h2 className="text-4xl font-bold text-yellow-400 mb-2">DAILY COMPLETED!</h2>
+                        <p className="text-white mb-6">You cracked today's code.</p>
+                        <p className="text-blue-300 text-sm">Switching to Practice Mode...</p>
+                    </div>
+                )}
 
                 {/* Rule / Example */}
                 <div className="mb-8">
@@ -99,12 +154,13 @@ export const CipherGame = () => {
                         placeholder="Type your answer..."
                         className="w-full max-w-md bg-black/30 border-2 border-white/20 rounded-xl px-6 py-4 text-center text-2xl md:text-3xl text-white font-mono focus:border-blue-400 focus:outline-none transition-all placeholder:text-white/10"
                         onKeyDown={(e) => e.key === 'Enter' && checkAnswer()}
+                        disabled={success}
                     />
                 </div>
             </div>
 
             {/* Feedback/Explanation */}
-            {success && (
+            {success && gameMode === 'practice' && (
                 <div className="mb-6 p-4 bg-green-500/20 text-green-200 rounded-xl animate-fade-in">
                     <p className="font-bold">Correct!</p>
                     <p className="text-sm opacity-80">{puzzle.explanation}</p>
@@ -121,7 +177,8 @@ export const CipherGame = () => {
                 </button>
                 <button
                     onClick={checkAnswer}
-                    className="px-8 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold shadow-lg shadow-blue-500/30 transition-all active:scale-95 hover:scale-105"
+                    disabled={success}
+                    className="px-8 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold shadow-lg shadow-blue-500/30 transition-all active:scale-95 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     Submit
                 </button>

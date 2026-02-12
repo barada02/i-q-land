@@ -10,13 +10,61 @@ export interface Puzzle {
 
 const WORDS = ["APPLE", "TIGER", "EARTH", "SPACE", "WATER", "MUSIC", "PEACE", "SMILE", "LIGHT", "DREAM", "GAMES", "WORLD", "NEPAL", "DELHI", "PARIS", "TOKYO", "BRAIN", "LOGIC", "POWER", "SMART"];
 
-export const generatePuzzle = (): Puzzle => {
-  const type = Math.random() > 0.6 ? 'number' : Math.random() > 0.5 ? 'shift' : 'reverse';
-  const word1 = WORDS[Math.floor(Math.random() * WORDS.length)];
-  let word2 = WORDS[Math.floor(Math.random() * WORDS.length)];
-  while (word1 === word2) {
-    word2 = WORDS[Math.floor(Math.random() * WORDS.length)];
+// Linear Congruential Generator for seeded random numbers
+class SeededRNG {
+  private seed: number;
+
+  constructor(seed: number) {
+    this.seed = seed;
   }
+
+  // Returns a pseudo-random number between 0 and 1
+  next(): number {
+    const a = 1664525;
+    const c = 1013904223;
+    const m = 4294967296; // 2^32
+    this.seed = (a * this.seed + c) % m;
+    return this.seed / m;
+  }
+}
+
+// Global RNG instance
+let rng: SeededRNG | null = null;
+
+// Helper to get random number using either seeded RNG or Math.random
+const getRandom = (): number => {
+  return rng ? rng.next() : Math.random();
+};
+
+export const getDailySeed = (): number => {
+  const dateStr = getTodayString().replace(/-/g, '');
+  return parseInt(dateStr, 10);
+};
+
+export const getTodayString = (): string => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+export const generatePuzzle = (seed?: number): Puzzle => {
+  if (seed !== undefined) {
+    rng = new SeededRNG(seed);
+  } else {
+    rng = null; 
+  }
+
+  const typeProb = getRandom();
+  const type = typeProb > 0.6 ? 'number' : typeProb > 0.3 ? 'shift' : 'reverse';
+  
+  const w1Index = Math.floor(getRandom() * WORDS.length);
+  const word1 = WORDS[w1Index] || "APPLE";
+  
+  let w2Index = Math.floor(getRandom() * WORDS.length);
+  // Ensure distinct words
+  while (w1Index === w2Index) {
+    w2Index = Math.floor(getRandom() * WORDS.length);
+  }
+  const word2 = WORDS[w2Index] || "BRAIN";
 
   switch (type) {
     case 'number':
@@ -31,9 +79,9 @@ export const generatePuzzle = (): Puzzle => {
 };
 
 const generateShiftPuzzle = (w1: string, w2: string): Puzzle => {
-  const shift = Math.floor(Math.random() * 5) + 1; // 1 to 5
+  const shift = Math.floor(getRandom() * 5) + 1; // 1 to 5
   // Randomly deciding direction: + or -
-  const direction = Math.random() > 0.5 ? 1 : -1;
+  const direction = getRandom() > 0.5 ? 1 : -1;
   const actualShift = shift * direction;
 
   const transform = (word: string) => word.split('').map(c => {
