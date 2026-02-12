@@ -16,3 +16,14 @@ export type DecrementResponse = {
   postId: string;
   count: number;
 };
+
+export type DailyStatusResponse = {
+  isSolved: boolean;
+  username: string | null;
+  avatarUrl: string | null;
+};
+
+export type CompleteDailyResponse = {
+  success: boolean;
+  streak: number; 
+};

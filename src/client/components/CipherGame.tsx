@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react';
-import { generatePuzzle, getDailySeed, getTodayString, Puzzle } from '../utils/cipherUtils';
+import { generatePuzzle, getDailySeed, Puzzle } from '../utils/cipherUtils';
+
+// Define the response types locally or import if possible. 
+// For simplicity in this file, we'll define interfaces matching the server response.
+interface DailyStatusResponse {
+    isSolved: boolean;
+    username: string | null;
+    avatarUrl: string | null;
+}
 
 export const CipherGame = () => {
     const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
@@ -10,26 +18,42 @@ export const CipherGame = () => {
     const [success, setSuccess] = useState(false);
     const [showExplanation, setShowExplanation] = useState(false);
 
-    // New State for Modes
+    // New State for Modes & User
     const [gameMode, setGameMode] = useState<'daily' | 'practice'>('daily');
     const [dailyCompleted, setDailyCompleted] = useState(false);
+    const [userInfo, setUserInfo] = useState<{ username: string | null, avatarUrl: string | null }>({ username: null, avatarUrl: null });
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        checkDailyStatus();
+        fetchDailyStatus();
     }, []);
 
-    const checkDailyStatus = () => {
-        const today = getTodayString();
-        const lastSolved = localStorage.getItem('daily_solved_date');
+    const fetchDailyStatus = async () => {
+        try {
+            const res = await fetch('/api/daily-status');
+            if (res.ok) {
+                const data: DailyStatusResponse = await res.json();
+                setUserInfo({ username: data.username, avatarUrl: data.avatarUrl });
 
-        if (lastSolved === today) {
-            setDailyCompleted(true);
-            setGameMode('practice'); // Auto-switch to practice if daily is done
-            startPracticeLevel();
-        } else {
-            setDailyCompleted(false);
-            setGameMode('daily');
+                if (data.isSolved) {
+                    setDailyCompleted(true);
+                    setGameMode('practice');
+                    startPracticeLevel();
+                } else {
+                    setDailyCompleted(false);
+                    setGameMode('daily'); // Ensure we start in daily mode
+                    startDailyLevel();
+                }
+            } else {
+                // Fallback if offline or error
+                console.error("Failed to fetch status");
+                startDailyLevel();
+            }
+        } catch (e) {
+            console.error(e);
             startDailyLevel();
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -39,7 +63,7 @@ export const CipherGame = () => {
         setUserAnswer('');
         setSuccess(false);
         setShowExplanation(false);
-        setLevel(1); // Daily is just 1 level for now
+        setLevel(1);
     };
 
     const startPracticeLevel = () => {
@@ -49,16 +73,12 @@ export const CipherGame = () => {
         setShowExplanation(false);
     };
 
-    const handleDailyComplete = () => {
-        const today = getTodayString();
-        localStorage.setItem('daily_solved_date', today);
-        setDailyCompleted(true);
-        // Maybe show a "Daily Complete!" modal here?
-        // For now, let's switch to practice after a delay
-        setTimeout(() => {
-            setGameMode('practice');
-            startPracticeLevel();
-        }, 3000);
+    const markDailyCompleteConfig = async () => {
+        try {
+            await fetch('/api/complete-daily', { method: 'POST' });
+        } catch (e) {
+            console.error("Failed to mark daily complete", e);
+        }
     };
 
     const checkAnswer = () => {
@@ -76,8 +96,13 @@ export const CipherGame = () => {
             setScore(prev => prev + 100);
 
             if (gameMode === 'daily') {
-                handleDailyComplete();
+                setDailyCompleted(true);
+                markDailyCompleteConfig();
+
+                // Do NOT increment level for daily. 
+                // Just wait for user to switch to practice.
             } else {
+                // Practice mode: Auto-advance
                 setTimeout(() => {
                     setLevel(prev => prev + 1);
                     startPracticeLevel();
@@ -90,13 +115,26 @@ export const CipherGame = () => {
         }
     };
 
-    if (!puzzle) return <div className="text-white">Loading...</div>;
+    const switchToPractice = () => {
+        setGameMode('practice');
+        startPracticeLevel();
+    }
+
+    if (loading || !puzzle) return <div className="text-white flex h-screen items-center justify-center">Loading I-Q LAND...</div>;
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen w-full max-w-4xl mx-auto p-4 animate-fade-in text-center">
+        <div className="flex flex-col items-center justify-center min-h-screen w-full max-w-4xl mx-auto p-4 animate-fade-in text-center relative">
+
+            {/* User Info (Top Right) */}
+            {userInfo.username && (
+                <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full border border-white/10">
+                    {userInfo.avatarUrl && <img src={userInfo.avatarUrl} alt="Avatar" className="w-6 h-6 rounded-full" />}
+                    <span className="text-xs text-blue-200 font-medium">u/{userInfo.username}</span>
+                </div>
+            )}
 
             {/* HUD */}
-            <div className="w-full flex justify-between items-center mb-8 glass-panel p-4 rounded-xl">
+            <div className="w-full flex justify-between items-center mb-8 glass-panel p-4 rounded-xl mt-12 md:mt-0">
                 <div className="flex flex-col items-start">
                     <span className="text-xs text-blue-200 uppercase tracking-wider">Mode</span>
                     {gameMode === 'daily' ? (
@@ -121,10 +159,15 @@ export const CipherGame = () => {
 
                 {/* Daily Success Message Overlay */}
                 {success && gameMode === 'daily' && (
-                    <div className="absolute inset-0 bg-black/80 z-10 flex flex-col items-center justify-center rounded-2xl animate-fade-in backdrop-blur-sm">
+                    <div className="absolute inset-0 bg-black/80 z-10 flex flex-col items-center justify-center rounded-2xl animate-fade-in backdrop-blur-sm p-6">
                         <h2 className="text-4xl font-bold text-yellow-400 mb-2">DAILY COMPLETED!</h2>
                         <p className="text-white mb-6">You cracked today's code.</p>
-                        <p className="text-blue-300 text-sm">Switching to Practice Mode...</p>
+                        <button
+                            onClick={switchToPractice}
+                            className="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg transition-all"
+                        >
+                            Enter Practice Mode
+                        </button>
                     </div>
                 )}
 

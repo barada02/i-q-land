@@ -72,22 +72,58 @@ api.post('/increment', async (c) => {
   });
 });
 
-api.post('/decrement', async (c) => {
-  const { postId } = context;
-  if (!postId) {
-    return c.json<ErrorResponse>(
-      {
-        status: 'error',
-        message: 'postId is required',
-      },
-      400
-    );
-  }
 
-  const count = await redis.incrBy('count', -1);
-  return c.json<DecrementResponse>({
-    count,
-    postId,
-    type: 'decrement',
-  });
+
+// Helper for server-side date string
+const getTodayString = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+api.get('/daily-status', async (c) => {
+  try {
+    const user = await reddit.getCurrentUser();
+    if (!user) {
+      return c.json({ isSolved: false, username: null, avatarUrl: null });
+    }
+
+    const today = getTodayString();
+    const key = `daily_solved:${user.id}:${today}`;
+    const isSolved = await redis.get(key);
+
+    // Get snoovatar (avatar)
+    const snoovatar = await user.getSnoovatarUrl();
+
+    return c.json({
+      isSolved: isSolved === 'true',
+      username: user.username,
+      avatarUrl: snoovatar ?? null,
+    });
+  } catch (e) {
+    console.error('Error fetching daily status:', e);
+    return c.json({ isSolved: false, username: null, avatarUrl: null });
+  }
+});
+
+api.post('/complete-daily', async (c) => {
+  try {
+    const user = await reddit.getCurrentUser();
+    if (!user) {
+      return c.json({ success: false, streak: 0 }, 401);
+    }
+
+    const today = getTodayString();
+    const key = `daily_solved:${user.id}:${today}`;
+    
+    // Set expiry for 48 hours to be safe, or just keep it. 
+    // Let's keep it simple.
+    await redis.set(key, 'true');
+    
+    // Optional: Increment streak (future feature)
+    
+    return c.json({ success: true, streak: 1 });
+  } catch (e) {
+    console.error('Error completing daily:', e);
+    return c.json({ success: false, streak: 0 }, 500);
+  }
 });
