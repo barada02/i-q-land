@@ -123,7 +123,68 @@ api.post('/complete-daily', async (c) => {
     
     return c.json({ success: true, streak: 1 });
   } catch (e) {
-    console.error('Error completing daily:', e);
     return c.json({ success: false, streak: 0 }, 500);
+  }
+});
+
+api.post('/create-post', async (c) => {
+  try {
+    const user = await reddit.getCurrentUser();
+    if (!user) {
+      return c.json({ success: false, message: 'Must be logged in' }, 401);
+    }
+
+    const data = await c.req.json();
+    const { puzzleType, exampleInput, exampleOutput, question, answer, explanation } = data;
+
+    // Validation
+    if (!question || !answer || !exampleInput || !exampleOutput) {
+       return c.json({ success: false, message: 'Missing fields' }, 400);
+    }
+
+    // Create Post
+    const post = await reddit.submitPost({
+      title: 'Can you solve this logic puzzle? 🧠',
+      subredditName: context.subredditName || 'dailygame',
+      text: 'Click to play this custom puzzle!',
+    });
+
+    // Store Puzzle Data
+    const puzzleData = {
+      puzzleType,
+      exampleInput,
+      exampleOutput,
+      question,
+      answer,
+      explanation,
+      author: user.username
+    };
+
+    await redis.set(`puzzle:${post.id}`, JSON.stringify(puzzleData));
+
+    return c.json({ success: true, postId: post.id, url: post.url });
+
+  } catch (e) {
+    console.error('Create Post Error:', e);
+    return c.json({ success: false, message: 'Failed to create post' }, 500);
+  }
+});
+
+api.get('/puzzle-data', async (c) => {
+  const { postId } = context;
+  if (!postId) {
+    return c.json({ found: false });
+  }
+
+  try {
+    const dataStr = await redis.get(`puzzle:${postId}`);
+    if (dataStr) {
+      const puzzle = JSON.parse(dataStr);
+      return c.json({ found: true, puzzle });
+    }
+    return c.json({ found: false });
+  } catch (e) {
+    console.error('Fetch Puzzle Error:', e);
+    return c.json({ found: false });
   }
 });

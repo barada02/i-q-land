@@ -25,10 +25,13 @@ export const Splash = () => {
       </div>
 
       {/* Action Button */}
-      <div className="flex items-center justify-center mt-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+      <div className="flex flex-col items-center justify-center gap-4 mt-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
         <button
           className="group relative px-8 py-4 bg-white text-slate-900 font-bold text-xl rounded-full overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)]"
-          onClick={(e) => requestExpandedMode(e.nativeEvent, 'game')}
+          onClick={(e) => {
+            localStorage.removeItem('start_mode');
+            requestExpandedMode(e.nativeEvent, 'game');
+          }}
         >
           <span className="relative z-10 flex items-center gap-2">
             START DECODING
@@ -37,6 +40,16 @@ export const Splash = () => {
             </svg>
           </span>
           <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-white opactiy-0 group-hover:opacity-100 transition-opacity" />
+        </button>
+
+        <button
+          className="text-blue-300/80 hover:text-white text-sm font-medium tracking-wide transition-colors flex items-center gap-2 px-4 py-2 hover:bg-white/5 rounded-lg"
+          onClick={(e) => {
+            localStorage.setItem('start_mode', 'build');
+            requestExpandedMode(e.nativeEvent, 'game');
+          }}
+        >
+          <span className="text-lg">🛠️</span> Build a Puzzle
         </button>
       </div>
 

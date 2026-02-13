@@ -27,3 +27,25 @@ export type CompleteDailyResponse = {
   success: boolean;
   streak: number; 
 };
+
+export type PuzzleData = {
+  puzzleType: 'shift' | 'number' | 'reverse';
+  exampleInput: string;
+  exampleOutput: string;
+  question: string;
+  answer: string;
+  explanation: string;
+  author: string;
+};
+
+export type CreatePostResponse = {
+  success: boolean;
+  postId?: string;
+  url?: string;
+  message?: string;
+};
+
+export type GetPuzzleResponse = {
+  found: boolean;
+  puzzle?: PuzzleData;
+};
