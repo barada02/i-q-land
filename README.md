@@ -1,27 +1,72 @@
-## Devvit React Starter
+# I-Q-Land: Cipher Breaker 🧠
 
-A starter to build web applications on Reddit's developer platform
+> **Crack the code. Reveal the wisdom.**
 
-- [Devvit](https://developers.reddit.com/): A way to build and deploy immersive games on Reddit
-- [Vite](https://vite.dev/): For compiling the webView
-- [React](https://react.dev/): For UI
-- [Hono](https://hono.dev/): For backend logic
-- [Tailwind](https://tailwindcss.com/): For styles
-- [TypeScript](https://www.typescriptlang.org/): For type safety
+I-Q-Land is an immersive logic puzzle game built on Reddit's [Devvit](https://developers.reddit.com/) platform. Ideally suited for daily brain training, it challenges players to decode secret messages using various cipher techniques.
+
+## Features
+
+### 📅 Daily Challenge
+Every day, a new unique puzzle is generated for the community. Compete with others to solve it and maintain your daily streak!
+
+### ♾️ Practice Mode
+Hone your skills with an endless stream of randomly generated puzzles. Great for warming up or passing time.
+
+### 🛠️ Builder Mode
+Have a clever riddle or a tough code? Use the **Builder Mode** to create your own custom puzzle and post it directly to the subreddit! Other users can play your creation right within your post.
+
+### 🏆 Progress Tracking
+- Tracks your daily completion status.
+- Displays your Reddit avatar and username.
+- (Coming Soon) Global leaderboards and streak tracking.
+
+## Technical Stack
+
+This project is built using the **Devvit React Starter** template and features:
+
+- **Frontend**: [React](https://react.dev/) + [Vite](https://vite.dev/) + [Tailwind CSS](https://tailwindcss.com/)
+- **Backend**: [Hono](https://hono.dev/) (running on Devvit's Redis & Scheduler)
+- **Database**: Devvit Redis Plugin for state management and puzzle storage
+- **UI**: Custom Glassmorphism design system
 
 ## Getting Started
 
-> Make sure you have Node 22 downloaded on your machine before running!
+### Prerequisites
+- Node.js 22+
+- Devvit CLI (`npm install -g devvit`)
 
-1. Run `npm create devvit@latest --template=react`
-2. Go through the installation wizard. You will need to create a Reddit account and connect it to Reddit developers
-3. Copy the command on the success page into your terminal
+### Installation
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Login to Reddit:
+   ```bash
+   devvit login
+   ```
+
+### Development
+
+Start the local development server with hot-reloading:
+
+```bash
+npm run dev
+```
+
+This will launch a `playtest` session where you can interact with the app in a simulated Reddit environment.
 
 ## Commands
 
-- `npm run dev`: Starts a development server where you can develop your application live on Reddit.
-- `npm run build`: Builds your client and server projects
-- `npm run deploy`: Uploads a new version of your app
-- `npm run launch`: Publishes your app for review
-- `npm run login`: Logs your CLI into Reddit
-- `npm run type-check`: Type checks, lints, and prettifies your app
+| Command | Description |
+| :--- | :--- |
+| `npm run dev` | Starts local dev server (Playtest) |
+| `npm run build` | Builds client/server bundles |
+| `npm run deploy` | Uploads a new version to Reddit |
+| `npm run launch` | Publishes the app for review/public use |
+| `npm run type-check` | Runs TypeScript validation |
+
+## License
+
+BSD-3-Clause
